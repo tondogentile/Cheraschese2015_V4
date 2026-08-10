@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, CalendarClock, Mail, MessageSquare, Save, Check, Palette, Image, Sun, Moon, Monitor, RotateCcw, AlertTriangle, Shield, Users, Eye, EyeOff, UserCog, MessageCircle, Trophy, StickyNote, Lock, Sparkles, ChevronRight } from 'lucide-react';
+import { Settings, CalendarClock, Mail, MessageSquare, Save, Check, Palette, Image, Sun, Moon, Monitor, RotateCcw, AlertTriangle, Shield, ShieldCheck, Users, Eye, EyeOff, UserCog, MessageCircle, Trophy, StickyNote, Lock, Sparkles, ChevronRight } from 'lucide-react';
 import { settingsService, privacyService, parentAssociationService } from '@/services';
 import { DEFAULT_EXPIRING_SOON_THRESHOLD, USER_ROLE_META } from '@/lib/constants';
 import type { AdminSettings as AdminSettingsType, PrivacySettings, ParentAssociation, UserRole } from '@/types';
@@ -390,6 +390,12 @@ export default function AdminSettingsPage() {
               <p className="text-[11px] text-muted-app">
                 Controlla quali informazioni i genitori possono vedere degli altri giocatori. Le impostazioni sono simulate e non hanno ancora effetto reale.
               </p>
+              <div className="flex items-start gap-2 rounded-lg border border-primary-app/10 bg-primary-app/5 p-2.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-primary-app/60 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-muted-app">
+                  Simulazione mock frontend-only: le impostazioni privacy sono applicate alla vista rosa genitore simulata. Non sono sicurezza reale — l'applicazione server-side arriverà con l'integrazione Supabase/auth.
+                </p>
+              </div>
               <div className="space-y-3">
                 {PRIVACY_FIELDS.map(({ key, label, description }) => (
                   <ToggleRow

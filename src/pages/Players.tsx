@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Trash2, Users, Cake, ChevronRight } from 'lucide-react';
-import type { Player } from '@/types';
-import { playerService } from '@/services';
+import { Plus, Search, Trash2, Users, Cake, ChevronRight, Info, EyeOff } from 'lucide-react';
+import type { Player, PrivacySettings } from '@/types';
+import { playerService, privacyService } from '@/services';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLES, ROLE_LABELS, ROLE_COLORS, getInitials, isBirthdayToday } from '@/lib/constants';
 import { Loading, ErrorState, EmptyState } from '@/components/States';
@@ -10,7 +10,7 @@ import Modal from '@/components/Modal';
 
 export default function Players() {
   const navigate = useNavigate();
-  const { permissions } = useAuth();
+  const { permissions, role, user } = useAuth();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,12 +18,20 @@ export default function Players() {
   const [filterRole, setFilterRole] = useState<string>('all');
   const [showAdd, setShowAdd] = useState(false);
   const [editPlayer, setEditPlayer] = useState<Player | null>(null);
+  const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
+
+  const isParent = role === 'parent';
+  const childIds = user.player_ids || [];
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await playerService.getAll();
+      const [data, p] = await Promise.all([
+        playerService.getAll(),
+        privacyService.get(),
+      ]);
       setPlayers(data);
+      setPrivacy(p);
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -34,16 +42,27 @@ export default function Players() {
 
   useEffect(() => { load(); }, []);
 
-  const filtered = players.filter((p) => {
+  // For parent role, filter to only associated players
+  const rosterPlayers = isParent
+    ? players.filter((p) => childIds.includes(p.id))
+    : players;
+
+  const filtered = rosterPlayers.filter((p) => {
     const matchSearch = `${p.name} ${p.surname}`.toLowerCase().includes(search.toLowerCase());
     const matchRole = filterRole === 'all' || p.role === filterRole;
     return matchSearch && matchRole;
   });
 
   const roleCounts = ROLES.reduce((acc, r) => {
-    acc[r] = players.filter((p) => p.role === r && p.active).length;
+    acc[r] = rosterPlayers.filter((p) => p.role === r && p.active).length;
     return acc;
   }, {} as Record<string, number>);
+
+  // Privacy-aware rendering helpers for parent role
+  const showShirtNumber = !isParent || (privacy?.parents_can_view_shirt_number ?? true);
+  const showPosition = !isParent || (privacy?.parents_can_view_position ?? true);
+  const showBirthdays = !isParent || (privacy?.parents_can_view_birthdays ?? true);
+  const showPhotos = !isParent || (privacy?.parents_can_view_photos ?? true);
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
@@ -73,7 +92,7 @@ export default function Players() {
             filterRole === 'all' ? 'bg-gold/15 text-gold border-gold/40' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
           }`}
         >
-          TUTTI ({players.length})
+          TUTTI ({rosterPlayers.length})
         </button>
         {ROLES.map((r) => (
           <button
@@ -99,9 +118,19 @@ export default function Players() {
         />
       </div>
 
+      {/* Parent simulation notice */}
+      {isParent && (
+        <div className="flex items-start gap-2 rounded-xl border border-sky-500/20 bg-sky-500/5 p-3">
+          <Info className="w-4 h-4 text-sky-400/70 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-sky-300/80">
+            Vista genitore simulata: sono mostrati solo i giocatori associati al genitore selezionato.
+          </p>
+        </div>
+      )}
+
       {/* Player list */}
       {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="Nessun giocatore trovato" subtitle="Aggiungi il primo giocatore alla rosa" />
+        <EmptyState icon={Users} title="Nessun giocatore trovato" subtitle={isParent ? 'Nessun giocatore associato al tuo profilo' : 'Aggiungi il primo giocatore alla rosa'} />
       ) : (
         <div className="rounded-2xl border border-gold/30 overflow-hidden bg-black card-list">
           {filtered.map((player, idx) => {
@@ -114,10 +143,16 @@ export default function Players() {
               >
                 <div className="flex items-center gap-3">
                   <div className="relative shrink-0">
-                    <div className="w-11 h-11 rounded-full bg-zinc-900 border border-gold/30 flex items-center justify-center font-bebas text-lg text-gold">
-                      {getInitials(player.name, player.surname)}
-                    </div>
-                    {player.number != null && (
+                    {showPhotos ? (
+                      <div className="w-11 h-11 rounded-full bg-zinc-900 border border-gold/30 flex items-center justify-center font-bebas text-lg text-gold">
+                        {getInitials(player.name, player.surname)}
+                      </div>
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-zinc-900 border border-gold/20 flex items-center justify-center text-gold/40">
+                        <EyeOff className="w-4 h-4" />
+                      </div>
+                    )}
+                    {showShirtNumber && player.number != null && (
                       <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full gold-gradient text-black text-[10px] font-bold flex items-center justify-center border border-black">
                         {player.number}
                       </span>
@@ -126,12 +161,14 @@ export default function Players() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-medium text-white truncate">{player.name} {player.surname}</p>
-                      {birthday && <Cake className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      {showBirthdays && birthday && <Cake className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] font-bebas px-2 py-0.5 rounded-full border ${ROLE_COLORS[player.role] || ROLE_COLORS.centrocampista} tracking-wider`}>
-                        {ROLE_LABELS[player.role]?.toUpperCase() || player.role.toUpperCase()}
-                      </span>
+                      {showPosition && (
+                        <span className={`text-[10px] font-bebas px-2 py-0.5 rounded-full border ${ROLE_COLORS[player.role] || ROLE_COLORS.centrocampista} tracking-wider`}>
+                          {ROLE_LABELS[player.role]?.toUpperCase() || player.role.toUpperCase()}
+                        </span>
+                      )}
                       {!player.active && <span className="text-[10px] text-zinc-500 uppercase">Non attivo</span>}
                     </div>
                   </div>

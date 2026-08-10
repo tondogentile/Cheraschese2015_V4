@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Mail, Cake, Shirt, User, Trash2, Pencil, CalendarDays, Check, X, Clock, TrendingUp, Award, Zap, Trophy, CalendarOff, Plane, HeartPulse, GraduationCap, HelpCircle, ShieldCheck, AlertTriangle, XCircle } from 'lucide-react';
-import type { Player, TeamEvent, ConvocazioneWithPlayer, PlayerAttendanceDetail, AttendanceStats, PlannedAbsence, CertificateStatus } from '@/types';import { playerService, eventService, convocazioneService, attendanceService, absenceService, certificateService, settingsService } from '@/services';
+import { ArrowLeft, Phone, Mail, Cake, Shirt, User, Trash2, Pencil, CalendarDays, Check, X, Clock, TrendingUp, Award, Zap, Trophy, CalendarOff, Plane, HeartPulse, GraduationCap, HelpCircle, ShieldCheck, AlertTriangle, XCircle, EyeOff, Lock } from 'lucide-react';
+import type { Player, TeamEvent, ConvocazioneWithPlayer, PlayerAttendanceDetail, AttendanceStats, PlannedAbsence, CertificateStatus, PrivacySettings } from '@/types';import { playerService, eventService, convocazioneService, attendanceService, absenceService, certificateService, settingsService, privacyService } from '@/services';
 import { useAuth } from '@/hooks/useAuth';
 import { ROLE_LABELS, ROLE_COLORS, ROLE_ICONS, getInitials, formatBirthDate, getAge, isBirthdayToday, formatDateLong, EVENT_TYPE_META, MONTHS_SHORT, ABSENCE_REASON_META, ROLES, CERTIFICATE_STATUS_META, getCertificateStatus, getCertificateExpiryDate, getDaysUntilCertificateExpiry } from '@/lib/constants';
 import { Loading, ErrorState } from '@/components/States';
@@ -25,6 +25,7 @@ export default function PlayerDetails() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [threshold, setThreshold] = useState(30);
+  const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
 
   const reload = async () => {
     try {
@@ -54,17 +55,19 @@ export default function PlayerDetails() {
     (async () => {
       if (!id) return;
       try {
-        const [p, st, det, absences] = await Promise.all([
+        const [p, st, det, absences, priv] = await Promise.all([
           playerService.getById(id),
           playerService.getAttendanceStats(id),
           attendanceService.getPlayerDetail(id),
           absenceService.getByPlayer(id),
+          privacyService.get(),
         ]);
         if (!p) { setError('Giocatore non trovato'); return; }
         setPlayer(p);
         setStats(st);
         setDetail(det);
         setPlannedAbsences(absences);
+        setPrivacy(priv);
 
         const settings = await settingsService.get();
         setThreshold(settings.expiring_soon_threshold);
@@ -97,10 +100,48 @@ export default function PlayerDetails() {
   if (error) return <ErrorState message={error} />;
   if (!player) return <ErrorState message="Giocatore non trovato" />;
 
+  // Parent access control: block non-associated players
+  if (isParent && !isOwnChild) {
+    return (
+      <div className="space-y-5">
+        <button
+          onClick={() => navigate('/rosa')}
+          className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-gold transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Torna alla rosa
+        </button>
+        <div className="rounded-2xl border border-gold/20 bg-zinc-950/50 p-6 text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6 text-gold/60" />
+          </div>
+          <div>
+            <h2 className="font-bebas text-xl text-gold tracking-wider">ACCESSO LIMITATO</h2>
+            <p className="text-sm text-zinc-400 mt-2 max-w-xs mx-auto">
+              Puoi visualizzare solo i giocatori associati al tuo profilo genitore.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/rosa')}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gold/15 border border-gold/30 text-gold text-sm font-medium hover:bg-gold/25 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Vai alla rosa
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const RoleIcon = ROLE_ICONS[player.role] || User;
   const age = getAge(player.birth_date);
   const birthdayToday = isBirthdayToday(player.birth_date);
   const canSeeFullProfile = !isParent || isOwnChild;
+
+  // Privacy-aware visibility for parent role viewing own child's limited info
+  const showShirtNumber = !isParent || (privacy?.parents_can_view_shirt_number ?? true);
+  const showPosition = !isParent || (privacy?.parents_can_view_position ?? true);
+  const showAttendanceStats = !isParent || (privacy?.parents_can_view_attendance_stats ?? true);
+  const showBirthdays = !isParent || (privacy?.parents_can_view_birthdays ?? true);
+  const showPhotos = !isParent || (privacy?.parents_can_view_photos ?? true);
 
   return (
     <div className="space-y-5">
@@ -115,10 +156,16 @@ export default function PlayerDetails() {
       <div className="rounded-2xl border border-gold/30 bg-zinc-950/50 overflow-hidden">
         <div className="p-5 flex items-center gap-4">
           <div className="relative shrink-0">
-            <div className="w-16 h-16 rounded-full bg-zinc-900 border border-gold/30 flex items-center justify-center font-bebas text-2xl text-gold">
-              {getInitials(player.name, player.surname)}
-            </div>
-            {player.number != null && (
+            {showPhotos ? (
+              <div className="w-16 h-16 rounded-full bg-zinc-900 border border-gold/30 flex items-center justify-center font-bebas text-2xl text-gold">
+                {getInitials(player.name, player.surname)}
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-zinc-900 border border-gold/20 flex items-center justify-center text-gold/40">
+                <EyeOff className="w-5 h-5" />
+              </div>
+            )}
+            {showShirtNumber && player.number != null && (
               <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full gold-gradient text-black text-xs font-bold flex items-center justify-center border border-black">
                 {player.number}
               </span>
@@ -127,11 +174,13 @@ export default function PlayerDetails() {
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-white">{player.name} {player.surname}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-[10px] font-bebas px-2 py-0.5 rounded-full border ${ROLE_COLORS[player.role] || ROLE_COLORS.centrocampista} tracking-wider flex items-center gap-1`}>
-                <RoleIcon className="w-3 h-3" />
-                {ROLE_LABELS[player.role]?.toUpperCase() || player.role.toUpperCase()}
-              </span>
-              {birthdayToday && (
+              {showPosition && (
+                <span className={`text-[10px] font-bebas px-2 py-0.5 rounded-full border ${ROLE_COLORS[player.role] || ROLE_COLORS.centrocampista} tracking-wider flex items-center gap-1`}>
+                  <RoleIcon className="w-3 h-3" />
+                  {ROLE_LABELS[player.role]?.toUpperCase() || player.role.toUpperCase()}
+                </span>
+              )}
+              {showBirthdays && birthdayToday && (
                 <span className="text-[10px] font-bebas px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-300 tracking-wider flex items-center gap-1">
                   <Cake className="w-3 h-3" /> COMPLEANNO OGGI!
                 </span>
@@ -149,8 +198,8 @@ export default function PlayerDetails() {
         </div>
       </div>
 
-      {/* Attendance stats with badges — hidden for parents viewing other children */}
-      {canSeeFullProfile && detail && (
+      {/* Attendance stats with badges — hidden for parents viewing other children or when privacy setting is off */}
+      {canSeeFullProfile && showAttendanceStats && detail && (
         <div className="rounded-2xl border border-gold/30 bg-zinc-950/50 overflow-hidden">
           <div className="border-b border-gold/15 px-4 py-2.5 bg-gold/5">
             <h2 className="font-bebas text-sm text-gold tracking-wider flex items-center gap-1.5">
@@ -187,9 +236,9 @@ export default function PlayerDetails() {
           <h2 className="font-bebas text-sm text-gold tracking-wider">DATI PERSONALI</h2>
         </div>
         <div className="divide-y divide-gold/10">
-          <InfoRow icon={Shirt} label="Maglia" value={player.number != null ? `N° ${player.number}` : 'N/D'} />
-          <InfoRow icon={CalendarDays} label="Nascita" value={formatBirthDate(player.birth_date)} />
-          {age != null && <InfoRow icon={Cake} label="Età" value={`${age} anni`} />}
+          {showShirtNumber && <InfoRow icon={Shirt} label="Maglia" value={player.number != null ? `N° ${player.number}` : 'N/D'} />}
+          {showBirthdays && <InfoRow icon={CalendarDays} label="Nascita" value={formatBirthDate(player.birth_date)} />}
+          {showBirthdays && age != null && <InfoRow icon={Cake} label="Età" value={`${age} anni`} />}
         </div>
       </div>
 
