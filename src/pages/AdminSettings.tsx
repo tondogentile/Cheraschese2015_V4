@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Settings, CalendarClock, Mail, MessageSquare, Save, Check, Palette, Image, Sun, Moon, Monitor, RotateCcw, AlertTriangle } from 'lucide-react';
-import { settingsService } from '@/services';
-import { DEFAULT_EXPIRING_SOON_THRESHOLD } from '@/lib/constants';
-import type { AdminSettings as AdminSettingsType } from '@/types';
+import { Settings, CalendarClock, Mail, MessageSquare, Save, Check, Palette, Image, Sun, Moon, Monitor, RotateCcw, AlertTriangle, Shield, Users, Eye, EyeOff, UserCog, MessageCircle, Trophy, StickyNote, Lock, Sparkles, ChevronRight } from 'lucide-react';
+import { settingsService, privacyService, parentAssociationService } from '@/services';
+import { DEFAULT_EXPIRING_SOON_THRESHOLD, USER_ROLE_META } from '@/lib/constants';
+import type { AdminSettings as AdminSettingsType, PrivacySettings, ParentAssociation, UserRole } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
 import { useTheme, type ThemeMode, type ThemeColors } from '@/hooks/useTheme';
-import { useBranding, DEFAULT_BRANDING, type Branding } from '@/hooks/useBranding';
+import { useBranding, DEFAULT_BRANDING } from '@/hooks/useBranding';
 
 const COLOR_FIELDS: { key: keyof ThemeColors; label: string }[] = [
   { key: 'primary', label: 'Primario' },
@@ -23,6 +24,14 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: 'dark', label: 'Scuro', icon: Moon },
   { value: 'light', label: 'Chiaro', icon: Sun },
   { value: 'system', label: 'Sistema', icon: Monitor },
+];
+
+const PRIVACY_FIELDS: { key: keyof PrivacySettings; label: string; description: string }[] = [
+  { key: 'parents_can_view_shirt_number', label: 'Numero maglia', description: 'I genitori possono vedere il numero di maglia degli altri giocatori' },
+  { key: 'parents_can_view_position', label: 'Posizione', description: 'I genitori possono vedere il ruolo degli altri giocatori' },
+  { key: 'parents_can_view_attendance_stats', label: 'Statistiche presenze', description: 'I genitori possono vedere le statistiche di presenza degli altri giocatori' },
+  { key: 'parents_can_view_birthdays', label: 'Compleanni', description: 'I genitori possono vedere i compleanni degli altri giocatori' },
+  { key: 'parents_can_view_photos', label: 'Foto giocatori', description: 'I genitori possono vedere le foto profilo degli altri giocatori' },
 ];
 
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -48,7 +57,10 @@ function contrastRatio(hex1: string, hex2: string): number | null {
 }
 
 export default function AdminSettingsPage() {
+  const { user, role, setRole } = useAuth();
   const [settings, setSettings] = useState<AdminSettingsType | null>(null);
+  const [privacy, setPrivacy] = useState<PrivacySettings | null>(null);
+  const [associations, setAssociations] = useState<ParentAssociation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -60,30 +72,42 @@ export default function AdminSettingsPage() {
   const textBgContrast = contrastRatio(colors.text, colors.background);
   const lowContrast = textBgContrast !== null && textBgContrast < 4.5;
 
+  const isAdmin = role === 'coach' || role === 'manager';
+
   useEffect(() => {
-    settingsService.get().then((s) => {
+    Promise.all([
+      settingsService.get(),
+      privacyService.get(),
+      parentAssociationService.getAll(),
+    ]).then(([s, p, a]) => {
       setSettings(s);
+      setPrivacy(p);
+      setAssociations(a);
       setThresholdInput(String(s.expiring_soon_threshold));
       setLoading(false);
     });
   }, []);
 
   const handleSave = async () => {
-    if (!settings) return;
+    if (!settings || !privacy) return;
     setSaving(true);
     setSaved(false);
-    const updated = await settingsService.update({
-      ...settings,
-      expiring_soon_threshold: Math.max(1, parseInt(thresholdInput, 10) || DEFAULT_EXPIRING_SOON_THRESHOLD),
-    });
-    setSettings(updated);
-    setThresholdInput(String(updated.expiring_soon_threshold));
+    const [updatedSettings, updatedPrivacy] = await Promise.all([
+      settingsService.update({
+        ...settings,
+        expiring_soon_threshold: Math.max(1, parseInt(thresholdInput, 10) || DEFAULT_EXPIRING_SOON_THRESHOLD),
+      }),
+      privacyService.update(privacy),
+    ]);
+    setSettings(updatedSettings);
+    setPrivacy(updatedPrivacy);
+    setThresholdInput(String(updatedSettings.expiring_soon_threshold));
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
-  if (loading || !settings) {
+  if (loading || !settings || !privacy) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-2 border-primary-app/30 border-t-primary-app rounded-full animate-spin" />
@@ -269,6 +293,139 @@ export default function AdminSettingsPage() {
         </div>
       </section>
 
+      {/* ═══════════════════════════════════════════ */}
+      {/* ADMIN CONSOLE — Coach/Manager only          */}
+      {/* ═══════════════════════════════════════════ */}
+      {isAdmin && (
+        <>
+          <div className="flex items-center gap-2 pt-4 pb-1">
+            <Shield className="w-5 h-5 text-primary-app" />
+            <h2 className="font-bebas text-xl gold-text tracking-wider">ADMIN CONSOLE</h2>
+          </div>
+
+          {/* Role Simulation */}
+          <section className="rounded-2xl border border-primary-app/20 bg-card/60 overflow-hidden">
+            <div className="border-b border-primary-app/10 px-4 py-2.5 bg-primary-app/5">
+              <h3 className="font-bebas text-sm text-primary-app tracking-wider flex items-center gap-1.5">
+                <UserCog className="w-4 h-4" /> SIMULAZIONE RUOLO
+              </h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <p className="text-[11px] text-muted-app mb-1">Utente attuale</p>
+                <p className="text-sm font-medium text-app">{user.name}</p>
+                <p className="text-[10px] text-muted-app">
+                  Ruolo: {USER_ROLE_META[role].label}
+                </p>
+              </div>
+              <div className="pt-3 border-t border-primary-app/10">
+                <p className="text-[10px] font-bebas text-primary-app/70 tracking-wider mb-3">CAMBIA RUOLO SIMULATO</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['coach', 'manager', 'parent'] as UserRole[]).map((r) => {
+                    const meta = USER_ROLE_META[r];
+                    const Icon = meta.icon;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => setRole(r)}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all ${
+                          role === r
+                            ? 'border-primary-app bg-primary-app/10 text-primary-app'
+                            : 'border-app/20 text-muted-app hover:text-app hover:border-app/40'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="text-xs font-medium">{meta.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-app mt-3">
+                  La simulazione del ruolo permette di visualizzare l'app dalla prospettiva di ogni tipo di utente.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Parent-Player Association */}
+          <section className="rounded-2xl border border-primary-app/20 bg-card/60 overflow-hidden">
+            <div className="border-b border-primary-app/10 px-4 py-2.5 bg-primary-app/5">
+              <h3 className="font-bebas text-sm text-primary-app tracking-wider flex items-center gap-1.5">
+                <Users className="w-4 h-4" /> ASSOCIAZIONE GENITORE-GIOCATORE
+              </h3>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-[11px] text-muted-app">
+                Associazioni simulate tra genitori e giocatori. In futuro saranno gestite tramite autenticazione reale.
+              </p>
+              <div className="divide-y divide-app/10">
+                {associations.map((a) => (
+                  <div key={a.parent_id} className="flex items-center gap-3 py-2.5">
+                    <div className="w-9 h-9 rounded-full bg-primary-app/10 border border-primary-app/20 flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4 text-primary-app" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-app truncate">{a.parent_name}</p>
+                      <p className="text-[10px] text-muted-app">Genitore</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-app shrink-0" />
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="text-sm font-medium text-app truncate">{a.player_name}</p>
+                      <p className="text-[10px] text-muted-app">Giocatore associato</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Privacy Settings */}
+          <section className="rounded-2xl border border-primary-app/20 bg-card/60 overflow-hidden">
+            <div className="border-b border-primary-app/10 px-4 py-2.5 bg-primary-app/5">
+              <h3 className="font-bebas text-sm text-primary-app tracking-wider flex items-center gap-1.5">
+                <Lock className="w-4 h-4" /> PRIVACY ROSA
+              </h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-[11px] text-muted-app">
+                Controlla quali informazioni i genitori possono vedere degli altri giocatori. Le impostazioni sono simulate e non hanno ancora effetto reale.
+              </p>
+              <div className="space-y-3">
+                {PRIVACY_FIELDS.map(({ key, label, description }) => (
+                  <ToggleRow
+                    key={key}
+                    icon={privacy[key] ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    label={label}
+                    description={description}
+                    checked={privacy[key]}
+                    onToggle={() => setPrivacy({ ...privacy, [key]: !privacy[key] })}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Future Features Placeholders */}
+          <section className="rounded-2xl border border-primary-app/10 bg-card/40 overflow-hidden">
+            <div className="border-b border-primary-app/10 px-4 py-2.5 bg-primary-app/5">
+              <h3 className="font-bebas text-sm text-primary-app/60 tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4" /> FUNZIONALITA' FUTURE
+              </h3>
+            </div>
+            <div className="p-4 space-y-2">
+              <p className="text-[10px] text-muted-app mb-3">
+                Le seguenti aree saranno disponibili in futuro. Attualmente non sono funzionali.
+              </p>
+              <FuturePlaceholder icon={<Trophy className="w-4 h-4" />} label="Impostazioni MVP Badge" description="Configurazione del sistema di badge MVP per le partite" />
+              <FuturePlaceholder icon={<StickyNote className="w-4 h-4" />} label="Note Tecniche" description="Gestione delle note tecniche sui giocatori" />
+              <FuturePlaceholder icon={<MessageCircle className="w-4 h-4" />} label="Impostazioni WhatsApp" description="Integrazione e modelli per invii WhatsApp automatici" />
+              <FuturePlaceholder icon={<Image className="w-4 h-4" />} label="Branding Avanzato" description="Personalizzazione avanzata dell'aspetto della squadra" />
+              <FuturePlaceholder icon={<Palette className="w-4 h-4" />} label="Temi Personalizzati" description="Creazione e salvataggio di temi personalizzati" />
+            </div>
+          </section>
+        </>
+      )}
+
       {/* Save button */}
       <button
         onClick={handleSave}
@@ -351,6 +508,25 @@ function ToggleRow({ icon, label, description, checked, onToggle }: {
       >
         <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-app transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
       </button>
+    </div>
+  );
+}
+
+function FuturePlaceholder({ icon, label, description }: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-app/10 bg-app/20 p-3 opacity-70">
+      <div className="w-9 h-9 rounded-lg bg-primary-app/5 border border-primary-app/10 flex items-center justify-center text-primary-app/50 shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-app/80">{label}</p>
+        <p className="text-[10px] text-muted-app mt-0.5">{description}</p>
+      </div>
+      <span className="text-[9px] font-bebas text-muted-app/50 tracking-wider shrink-0">PRESTO</span>
     </div>
   );
 }

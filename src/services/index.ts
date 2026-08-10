@@ -1,5 +1,5 @@
-import type { Player, TeamEvent, Communication, Convocazione, ConvocazioneWithPlayer, AttendanceStats, ConvocationSummary, PlayerAttendanceDetail, TeamAttendanceStats, AttendanceByEvent, AttendanceByPlayer, CoachAttendanceAlerts, EventType, PlannedAbsence, PlannedAbsenceWithPlayer, RecurrenceRule, EditScope, DeleteScope, ExceptionType, Availability, AvailabilityWithPlayer, AvailabilitySummary, AvailabilityByEventItem, AdminSettings } from '@/types';
-import { mockPlayers, mockEvents, mockCommunications, mockConvocazioni, mockPlannedAbsences, mockAvailabilities, mockAdminSettings } from '@/mock-data';
+import type { Player, TeamEvent, Communication, Convocazione, ConvocazioneWithPlayer, AttendanceStats, ConvocationSummary, PlayerAttendanceDetail, TeamAttendanceStats, AttendanceByEvent, AttendanceByPlayer, CoachAttendanceAlerts, EventType, PlannedAbsence, PlannedAbsenceWithPlayer, RecurrenceRule, EditScope, DeleteScope, ExceptionType, Availability, AvailabilityWithPlayer, AvailabilitySummary, AvailabilityByEventItem, AdminSettings, PrivacySettings, ParentAssociation } from '@/types';
+import { mockPlayers, mockEvents, mockCommunications, mockConvocazioni, mockPlannedAbsences, mockAvailabilities, mockAdminSettings, mockPrivacySettings, mockParentAssociations } from '@/mock-data';
 import { generateRecurringEvents } from '@/lib/recurrence';
 import { getCertificateStatus, DEFAULT_EXPIRING_SOON_THRESHOLD } from '@/lib/constants';
 
@@ -808,4 +808,35 @@ export const certificateService = {
       .sort((a, b) => a.surname.localeCompare(b.surname));
   },
 
+};
+
+// ─── Privacy Settings ───
+let privacySettings: PrivacySettings = { ...mockPrivacySettings };
+
+export const privacyService = {
+  async get(): Promise<PrivacySettings> {
+    await delay(50);
+    return { ...privacySettings };
+  },
+
+  async update(data: Partial<PrivacySettings>): Promise<PrivacySettings> {
+    await delay();
+    privacySettings = { ...privacySettings, ...data };
+    return { ...privacySettings };
+  },
+};
+
+// ─── Parent Associations ───
+let parentAssociations: ParentAssociation[] = [...mockParentAssociations];
+
+export const parentAssociationService = {
+  async getAll(): Promise<ParentAssociation[]> {
+    await delay(50);
+    return [...parentAssociations];
+  },
+
+  async getByParentId(parentId: string): Promise<ParentAssociation | null> {
+    await delay(50);
+    return parentAssociations.find((a) => a.parent_id === parentId) || null;
+  },
 };

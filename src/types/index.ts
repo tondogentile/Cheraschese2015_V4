@@ -215,3 +215,18 @@ export type AvailabilityByEventItem = {
   event: TeamEvent;
   summary: AvailabilitySummary;
 };
+
+export type PrivacySettings = {
+  parents_can_view_shirt_number: boolean;
+  parents_can_view_position: boolean;
+  parents_can_view_attendance_stats: boolean;
+  parents_can_view_birthdays: boolean;
+  parents_can_view_photos: boolean;
+};
+
+export type ParentAssociation = {
+  parent_id: string;
+  parent_name: string;
+  player_id: string;
+  player_name: string;
+};

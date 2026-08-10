@@ -1,4 +1,4 @@
-import type { Player, TeamEvent, Communication, Convocazione, MockUser, PlannedAbsence, Availability, AdminSettings } from '@/types';
+import type { Player, TeamEvent, Communication, Convocazione, MockUser, PlannedAbsence, Availability, AdminSettings, PrivacySettings, ParentAssociation } from '@/types';
 
 const today = new Date();
 const todayMD = today.toISOString().slice(5, 10);
@@ -126,6 +126,21 @@ export const mockAdminSettings: AdminSettings = {
   email_reminder_enabled: false,
   whatsapp_reminder_enabled: false,
 };
+
+export const mockPrivacySettings: PrivacySettings = {
+  parents_can_view_shirt_number: true,
+  parents_can_view_position: true,
+  parents_can_view_attendance_stats: false,
+  parents_can_view_birthdays: true,
+  parents_can_view_photos: false,
+};
+
+export const mockParentAssociations: ParentAssociation[] = [
+  { parent_id: 'u3', parent_name: 'Carlo Rossi', player_id: 'p1', player_name: 'Luca Rossi' },
+  { parent_id: 'u4', parent_name: 'Gianni Bianchi', player_id: 'p2', player_name: 'Marco Bianchi' },
+  { parent_id: 'u5', parent_name: 'Paolo Verdi', player_id: 'p3', player_name: 'Giuseppe Verdi' },
+  { parent_id: 'u6', parent_name: 'Stefano Neri', player_id: 'p4', player_name: 'Andrea Ferrari' },
+];
 
 export const mockUsers: MockUser[] = [
   { id: 'u1', name: 'Allenatore Marco', role: 'coach' },
