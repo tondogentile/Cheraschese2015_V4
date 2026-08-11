@@ -330,6 +330,36 @@ export const convocazioneService = {
     }
   },
 
+  async setPlayerResponseForEvent(
+    eventId: string,
+    playerId: string,
+    response: Convocazione['response']
+  ): Promise<Convocazione> {
+    await delay(50);
+
+    const existing = convocazioni.find(
+      (c) => c.event_id === eventId && c.player_id === playerId
+    );
+
+    if (existing) {
+      existing.response = response;
+      return existing;
+    }
+
+    const newConvocazione: Convocazione = {
+      id: genId(),
+      event_id: eventId,
+      player_id: playerId,
+      status: 'convocato',
+      response,
+      notes: null,
+      created_at: new Date().toISOString(),
+    };
+
+    convocazioni.push(newConvocazione);
+    return newConvocazione;
+  },
+  
   async replaceForEvent(eventId: string, items: { player_id: string; status: Convocazione['status']; response: Convocazione['response'] }[]): Promise<void> {
     await delay();
     convocazioni = convocazioni.filter((c) => c.event_id !== eventId);
