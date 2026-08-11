@@ -294,7 +294,7 @@ The file must exist at the repository root and must contain:
       "rewrites": [
         {
           "source": "/(.*)",
-          "destination": "/in*ex.html"
+          "destination": "/index.html"
         }
       ]
     }
