@@ -83,6 +83,7 @@ export default function Attendance() {
     }
   }, []);
 
+  
   const applyFilters = async () => {
     const m = monthFilter === 'all' ? undefined : monthFilter;
     const t = typeFilter === 'all' ? undefined : typeFilter;
