@@ -213,6 +213,23 @@ No real notifications are implemented yet.
 
 ---
 
+## Phase 11.2: GENI Privacy Read Model (Completed)
+
+Parent roster filtering and privacy toggles are implemented as frontend-only mock privacy simulation.
+
+### What was done
+
+- Parent role sees only players associated via `player_ids` on the simulated user; Coach and Manager see the full roster unchanged.
+- Parent role opening a non-associated player detail route gets a friendly restricted-access card with a back-to-roster button instead of a blank page or crash.
+- Roster privacy settings (shirt number, position, attendance statistics, birthdays, photos) are applied to Parent view only. Coach and Manager are unaffected by these toggles.
+- A note in Admin Settings explains the privacy settings are now used by the mock parent roster/player detail view.
+
+### Limitations
+
+This is frontend-only mock privacy, not real security. A determined user can bypass it by changing client state. Real enforcement requires Supabase RLS policies and server-side auth, planned for a later phase.
+
+---
+
 ## Current Deployment
 
 The app is deployed on Vercel.

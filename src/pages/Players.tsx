@@ -72,7 +72,7 @@ export default function Players() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-bebas text-3xl gold-text tracking-wide">ROSA</h1>
-          <p className="text-[10px] text-gold/60 font-bebas tracking-widest mt-0.5">{players.length} GIOCATORI</p>
+          <p className="text-[10px] text-gold/60 font-bebas tracking-widest mt-0.5">{rosterPlayers.length} GIOCATORI</p>
         </div>
         {permissions.canManagePlayers && (
           <button
