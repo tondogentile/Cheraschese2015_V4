@@ -215,21 +215,14 @@ No real notifications are implemented yet.
 
 ## Phase 11.2: GENI Privacy Read Model (Completed)
 
-Parent roster visibility and privacy toggles are implemented as frontend-only mock privacy simulation.
+Parent roster filtering and privacy toggles are implemented as frontend-only mock privacy simulation.
 
 ### What was done
 
-- Parent role can see the full roster list but can only open player details for players associated via `player_ids` on the simulated user.
-- Coach and Manager can see the full roster and can open all player details.
+- Parent role can see the full roster list but can only open player details for players associated via `player_ids` on the simulated user; Coach and Manager see the full roster and can open all player details.
 - Parent role opening a non-associated player detail route gets a friendly restricted-access card with a back-to-roster button instead of a blank page or crash.
-- Roster privacy settings are applied to Parent view only:
-  - shirt number
-  - position
-  - attendance statistics
-  - birthdays
-  - photos
-- Coach and Manager are unaffected by Parent privacy toggles.
-- A note in Admin Settings explains that the privacy settings are now used by the mock parent roster/player detail view.
+- Roster privacy settings (shirt number, position, attendance statistics, birthdays, photos) are applied to Parent view only. Coach and Manager are unaffected by these toggles.
+- A note in Admin Settings explains the privacy settings are now used by the mock parent roster/player detail view.
 
 ### Limitations
 
@@ -237,69 +230,18 @@ This is frontend-only mock privacy, not real security. A determined user can byp
 
 ---
 
-## Project Safety Alignment - PWA Assets
-
-The PWA asset structure is currently aligned with `public/manifest.webmanifest`.
-
-Current public assets:
-
-- `public/LogoCheraschese.png`
-- `public/manifest.webmanifest`
-- `public/sw.js`
-- `public/icons/icon-192.png`
-- `public/icons/icon-512.png`
-
-The manifest references:
-
-- `/icons/icon-192.png`
-- `/icons/icon-512.png`
-
-These icon files must be preserved because they are required by the PWA manifest.
-
-`public/sw.js` is present and must be preserved.
-
-The current environment example file is:
-
-- `env.example`
-
-`.env.example` is not currently present.
-
-Do not remove or rename:
-
-- `vercel.json`
-- `PROJECT_CONTEXT.md`
-- `.gitignore`
-- `env.example`
-- `public/manifest.webmanifest`
-- `public/sw.js`
-- `public/LogoCheraschese.png`
-- `public/icons/icon-192.png`
-- `public/icons/icon-512.png`
-
-Do not manually edit `dist/`.
-
-Do not modify `supabase/` until Supabase integration is explicitly started.
-
----
-
 ## Current Deployment
 
 The app is deployed on Vercel.
 
-A `vercel.json` file is required for SPA routing fallback.
+A `vercel.json` file is required for SPA routing fallback:
 
-The file must exist at the repository root and must contain:
-
+```json
+{
+  "rewrites": [
     {
-      "rewrites": [
-        {
-          "source": "/(.*)",
-          "destination": "/index.html"
-        }
-      ]
-    }
-
-*f `vercel.json` is removed, intern*l routes such as `/rosa`, `/calend*rio`, `/convocazioni`, `/presenze`* `/comunicazioni` and `/impostazio*i` may return `404: NOT_FOUND` whe* refreshed directly on Vercel.
-
-Do*not remove or modify Vercel SPA ro*ting unless explicitly requested.
-*
+      "source": "/(.*)",
+  *   "destination": "/index.html"
+  * }
+  ]
+}
