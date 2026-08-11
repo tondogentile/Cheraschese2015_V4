@@ -219,7 +219,7 @@ Parent roster filtering and privacy toggles are implemented as frontend-only moc
 
 ### What was done
 
-- Parent role sees only players associated via `player_ids` on the simulated user; Coach and Manager see the full roster unchanged.
+- Parent role can see the full roster list but can only open player details for players associated via `player_ids` on the simulated user; Coach and Manager see the full roster and can open all player details.
 - Parent role opening a non-associated player detail route gets a friendly restricted-access card with a back-to-roster button instead of a blank page or crash.
 - Roster privacy settings (shirt number, position, attendance statistics, birthdays, photos) are applied to Parent view only. Coach and Manager are unaffected by these toggles.
 - A note in Admin Settings explains the privacy settings are now used by the mock parent roster/player detail view.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Trash2, Users, Cake, ChevronRight, Info, EyeOff } from 'lucide-react';
+import { Plus, Search, Trash2, Users, Cake, ChevronRight, Info, EyeOff, Lock } from 'lucide-react';
 import type { Player, PrivacySettings } from '@/types';
 import { playerService, privacyService } from '@/services';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,19 +42,17 @@ export default function Players() {
 
   useEffect(() => { load(); }, []);
 
-  // For parent role, filter to only associated players
-  const rosterPlayers = isParent
-    ? players.filter((p) => childIds.includes(p.id))
-    : players;
+  // Parent sees the full roster list but can only open associated player details.
+  const isAssociatedPlayer = (playerId: string) => !isParent || childIds.includes(playerId);
 
-  const filtered = rosterPlayers.filter((p) => {
+  const filtered = players.filter((p) => {
     const matchSearch = `${p.name} ${p.surname}`.toLowerCase().includes(search.toLowerCase());
     const matchRole = filterRole === 'all' || p.role === filterRole;
     return matchSearch && matchRole;
   });
 
   const roleCounts = ROLES.reduce((acc, r) => {
-    acc[r] = rosterPlayers.filter((p) => p.role === r && p.active).length;
+    acc[r] = players.filter((p) => p.role === r && p.active).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -72,7 +70,7 @@ export default function Players() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-bebas text-3xl gold-text tracking-wide">ROSA</h1>
-          <p className="text-[10px] text-gold/60 font-bebas tracking-widest mt-0.5">{rosterPlayers.length} GIOCATORI</p>
+          <p className="text-[10px] text-gold/60 font-bebas tracking-widest mt-0.5">{players.length} GIOCATORI</p>
         </div>
         {permissions.canManagePlayers && (
           <button
@@ -92,7 +90,7 @@ export default function Players() {
             filterRole === 'all' ? 'bg-gold/15 text-gold border-gold/40' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
           }`}
         >
-          TUTTI ({rosterPlayers.length})
+          TUTTI ({players.length})
         </button>
         {ROLES.map((r) => (
           <button
@@ -123,23 +121,62 @@ export default function Players() {
         <div className="flex items-start gap-2 rounded-xl border border-sky-500/20 bg-sky-500/5 p-3">
           <Info className="w-4 h-4 text-sky-400/70 shrink-0 mt-0.5" />
           <p className="text-[11px] text-sky-300/80">
-            Vista genitore simulata: sono mostrati solo i giocatori associati al genitore selezionato.
+            Vista genitore simulata: puoi consultare l'elenco squadra, ma aprire solo il profilo dei giocatori associati.
           </p>
         </div>
       )}
 
       {/* Player list */}
       {filtered.length === 0 ? (
-        <EmptyState icon={Users} title="Nessun giocatore trovato" subtitle={isParent ? 'Nessun giocatore associato al tuo profilo' : 'Aggiungi il primo giocatore alla rosa'} />
+        <EmptyState icon={Users} title="Nessun giocatore trovato" subtitle="Aggiungi il primo giocatore alla rosa" />
       ) : (
         <div className="rounded-2xl border border-gold/30 overflow-hidden bg-black card-list">
           {filtered.map((player, idx) => {
             const birthday = isBirthdayToday(player.birth_date);
+            const associated = isAssociatedPlayer(player.id);
+            const cardBase = `w-full text-left bg-zinc-950/50 p-3 ${idx < filtered.length - 1 ? 'border-b border-gold/10' : ''}`;
+            if (isParent && !associated) {
+              return (
+                <div key={player.id} className={`${cardBase} opacity-60`}>
+                  <div className="flex items-center gap-3">
+                    <div className="relative shrink-0">
+                      {showPhotos ? (
+                        <div className="w-11 h-11 rounded-full bg-zinc-900 border border-gold/20 flex items-center justify-center font-bebas text-lg text-zinc-500">
+                          {getInitials(player.name, player.surname)}
+                        </div>
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-zinc-900 border border-gold/20 flex items-center justify-center text-gold/40">
+                          <EyeOff className="w-4 h-4" />
+                        </div>
+                      )}
+                      {showShirtNumber && player.number != null && (
+                        <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-zinc-800 text-zinc-500 text-[10px] font-bold flex items-center justify-center border border-zinc-700">
+                          {player.number}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-400 truncate">{player.name} {player.surname}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {showPosition && (
+                          <span className={`text-[10px] font-bebas px-2 py-0.5 rounded-full border ${ROLE_COLORS[player.role] || ROLE_COLORS.centrocampista} tracking-wider opacity-50`}>
+                            {ROLE_LABELS[player.role]?.toUpperCase() || player.role.toUpperCase()}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> Profilo riservato
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
             return (
               <button
                 key={player.id}
                 onClick={() => navigate(`/rosa/${player.id}`)}
-                className={`w-full text-left bg-zinc-950/50 p-3 hover:bg-gold/5 transition-colors ${idx < filtered.length - 1 ? 'border-b border-gold/10' : ''}`}
+                className={`${cardBase} hover:bg-gold/5 transition-colors`}
               >
                 <div className="flex items-center gap-3">
                   <div className="relative shrink-0">
