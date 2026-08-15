@@ -83,7 +83,6 @@ export default function Attendance() {
     }
   }, []);
 
-  
   const applyFilters = async () => {
     const m = monthFilter === 'all' ? undefined : monthFilter;
     const t = typeFilter === 'all' ? undefined : typeFilter;
@@ -97,32 +96,21 @@ export default function Attendance() {
 
   useEffect(() => { if (!isParent) applyFilters(); }, [monthFilter, typeFilter]);
 
-const handleParentResponse = async (eventId: string, response: 'confermato' | 'declinato') => {
-  if (!parentPlayerId) return;
-
-  const conv = parentConvs[eventId];
-
-  if (conv) {
-    await convocazioneService.setResponse(conv.id, response);
-
-    setParentConvs((prev) => {
-      const next = { ...prev };
-      next[eventId] = { ...conv, response };
-      return next;
-    });
-
-    return;
-  }
-
-  const newConv = await convocazioneService.setPlayerResponseForEvent(eventId, parentPlayerId, response);
-  const player = await playerService.getById(parentPlayerId);
-
-  setParentConvs((prev) => {
-    const next = { ...prev };
-    next[eventId] = player ? { ...newConv, player } : null;
-    return next;
-  });
-};
+  const handleParentResponse = async (eventId: string, response: 'confermato' | 'declinato') => {
+    if (!parentPlayerId) return;
+    const conv = parentConvs[eventId];
+    if (conv) {
+      await convocazioneService.setResponse(conv.id, response);
+    } else {
+      // Training auto-invite: create convocation if missing
+      await convocazioneService.replaceForEvent(eventId, [{ player_id: parentPlayerId, status: 'convocato', response }]);
+    }
+    // Update local state
+    setParentConvs((prev) => ({
+      ...prev,
+      [eventId]: prev[eventId] ? { ...prev[eventId]!, response } : null,
+    }));
+  };
 
   if (isParent) {
     if (parentLoading) return <Loading />;
@@ -146,6 +134,7 @@ const handleParentResponse = async (eventId: string, response: 'confermato' | 'd
               const day = date.getDate();
               const monthShort = MONTHS_SHORT[date.getMonth()];
               const conv = parentConvs[event.id];
+              const isTraining = event.event_type === 'allenamento';
               const currentResponse = conv?.response || 'confermato';
               return (
                 <div key={event.id} className={`rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`}>
@@ -167,9 +156,9 @@ const handleParentResponse = async (eventId: string, response: 'confermato' | 'd
                     </div>
                   </button>
                   <div className="border-t border-gold/15 px-3 py-2.5">
-                      <p className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider font-bebas">
-                        La tua risposta:
-                      </p>
+                    <p className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider font-bebas">
+                      {isTraining ? 'Segnala assenza:' : 'La tua risposta:'}
+                    </p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleParentResponse(event.id, 'confermato')}
@@ -177,7 +166,7 @@ const handleParentResponse = async (eventId: string, response: 'confermato' | 'd
                           currentResponse === 'confermato' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-800 text-zinc-400 border border-transparent'
                         }`}
                       >
-                        <Check className="w-3.5 h-3.5" /> PRESENTE
+                        <Check className="w-3.5 h-3.5" /> {isTraining ? 'PRESENTE' : 'CONFERMO'}
                       </button>
                       <button
                         onClick={() => handleParentResponse(event.id, 'declinato')}
@@ -267,7 +256,6 @@ function EventView({ data, onEventClick }: { data: AttendanceByEvent[]; onEventC
         const day = date.getDate();
         const monthShort = MONTHS_SHORT[date.getMonth()];
         const isTraining = event.event_type === 'allenamento';
-
         return (
           <div key={event.id} className={`rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`}>
             <button onClick={() => onEventClick(event.id)} className="w-full text-left p-3">
