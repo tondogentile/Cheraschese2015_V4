@@ -102,8 +102,7 @@ export default function Attendance() {
     if (conv) {
       await convocazioneService.setResponse(conv.id, response);
     } else {
-      // Training auto-invite: create convocation if missing
-      await convocazioneService.replaceForEvent(eventId, [{ player_id: parentPlayerId, status: 'convocato', response }]);
+      await convocazioneService.setPlayerResponseForEvent(eventId, parentPlayerId, response);
     }
     // Update local state
     setParentConvs((prev) => ({
@@ -134,7 +133,6 @@ export default function Attendance() {
               const day = date.getDate();
               const monthShort = MONTHS_SHORT[date.getMonth()];
               const conv = parentConvs[event.id];
-              const isTraining = event.event_type === 'allenamento';
               const currentResponse = conv?.response || 'confermato';
               return (
                 <div key={event.id} className={`rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`}>
@@ -157,7 +155,7 @@ export default function Attendance() {
                   </button>
                   <div className="border-t border-gold/15 px-3 py-2.5">
                     <p className="text-[10px] text-zinc-500 mb-2 uppercase tracking-wider font-bebas">
-                      {isTraining ? 'Segnala assenza:' : 'La tua risposta:'}
+                      La tua risposta:
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -166,7 +164,7 @@ export default function Attendance() {
                           currentResponse === 'confermato' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-800 text-zinc-400 border border-transparent'
                         }`}
                       >
-                        <Check className="w-3.5 h-3.5" /> {isTraining ? 'PRESENTE' : 'CONFERMO'}
+                        <Check className="w-3.5 h-3.5" /> PRESENTE
                       </button>
                       <button
                         onClick={() => handleParentResponse(event.id, 'declinato')}
