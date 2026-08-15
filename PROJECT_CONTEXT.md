@@ -230,6 +230,20 @@ This is frontend-only mock privacy, not real security. A determined user can byp
 
 ---
 
+## Phase 11.3B-1: Parent Attendance Safety (Completed)
+
+Parent Attendance was simplified so every event type shows only two buttons: PRESENTE and ASSENTE.
+
+- PRESENTE maps internally to response `confermato`.
+- ASSENTE maps internally to response `declinato`.
+- No new statuses were introduced. Parent labels such as CONFERMO and NON DISPONIBILE were removed from the Parent Attendance UI.
+- Parent Attendance uses `setPlayerResponseForEvent` instead of `replaceForEvent`. This updates or creates only the selected child/event pair without removing other players' convocation records.
+- Coach and Manager Attendance behavior (EventView, PlayerView, TeamView, AbsencesView, CoachView, tabs, statistics) is unchanged.
+- This is frontend-only mock logic, not real backend security.
+- Multi-child support (selecting among `player_ids`) is still pending; only the first associated child is used today.
+
+---
+
 ## Current Deployment
 
 The app is deployed on Vercel.
