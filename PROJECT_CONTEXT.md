@@ -244,6 +244,21 @@ Parent Attendance was simplified so every event type shows only two buttons: PRE
 
 ---
 
+## Phase 11.4A: GENI Event Detail Presence Controls and Staff-Only Attendance (Completed)
+
+GENI (Parent) no longer uses the Presenze page as the main attendance flow. Instead, parents mark presence/absence directly inside Event Details.
+
+- EventDetails now shows a "Presenza figli" section for Parent/GENI users with one PRESENTE/ASSENTE row per associated child.
+- PRESENTE maps to `confermato`, ASSENTE maps to `declinato`.
+- Parent actions use `setPlayerResponseForEvent` (new record) or `setResponse` (existing record), never `replaceForEvent`.
+- Parent no longer sees DISPONIBILE / NON DISPONIBILE controls, CONFERMO, or IN ATTESA labels in EventDetails.
+- Parent no longer sees the convocation stats section or the staff availability section in EventDetails.
+- The `/presenze` page is now staff-only: hidden from Parent navigation and redirects Parent to `/calendario` if accessed manually.
+- Coach and Manager EventDetails and Attendance behavior remain unchanged.
+- This is frontend-only mock logic, not backend security.
+
+---
+
 ## Current Deployment
 
 The app is deployed on Vercel.

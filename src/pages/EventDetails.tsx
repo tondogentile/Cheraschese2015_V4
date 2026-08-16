@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, Clock, MapPin, FileText, Users, Check, X, Clock as ClockIcon, Navigation, Star, Trash2, Pencil, Flag, UserCheck, UserX, Repeat, AlertTriangle, CalendarOff, Sparkles, CheckCircle } from 'lucide-react';
-import type { TeamEvent, ConvocazioneWithPlayer, ConvocationSummary, EventType, TimeOfDay, EditScope, DeleteScope, ExceptionType, AvailabilityWithPlayer, AvailabilitySummary } from '@/types';
-import { eventService, convocazioneService, availabilityService, isTrainingEvent, requiresConvocations, requiresAvailability } from '@/services';
+import type { TeamEvent, ConvocazioneWithPlayer, ConvocationSummary, EventType, TimeOfDay, EditScope, DeleteScope, ExceptionType, AvailabilityWithPlayer, AvailabilitySummary, Player } from '@/types';
+import { eventService, convocazioneService, availabilityService, playerService, isTrainingEvent, requiresConvocations, requiresAvailability } from '@/services';
 import { useAuth } from '@/hooks/useAuth';
 import { EVENT_TYPE_META, EVENT_STATUS_META, TIME_OF_DAY_META, CONVOCATO_STATUS_META, RESPONSE_META, AVAILABILITY_META, formatDateLong, formatTime, getInitials, ROLE_LABELS, MONTHS_SHORT } from '@/lib/constants';
 import { Loading, ErrorState, EmptyState } from '@/components/States';
@@ -24,6 +24,10 @@ export default function EventDetails() {
   const [editScope, setEditScope] = useState<EditScope>('single');
   const [deleteScope, setDeleteScope] = useState<DeleteScope>('single');
   const [showException, setShowException] = useState(false);
+  const [parentPlayers, setParentPlayers] = useState<Player[]>([]);
+
+  const isParent = user.role === 'parent';
+  const parentPlayerIds = isParent ? (user.player_ids || []) : [];
 
   const load = async () => {
     if (!id) return;
@@ -37,6 +41,14 @@ export default function EventDetails() {
       setEvent(ev);
       setConvs(cv);
       setSummary(sm);
+      if (isParent && parentPlayerIds.length > 0) {
+        const players: Player[] = [];
+        for (const pid of parentPlayerIds) {
+          const p = await playerService.getById(pid);
+          if (p) players.push(p);
+        }
+        setParentPlayers(players);
+      }
       if (requiresAvailability(ev.event_type)) {
         const [avs, avSum] = await Promise.all([
           availabilityService.getByEventId(id),
@@ -82,8 +94,18 @@ export default function EventDetails() {
     load();
   };
 
+  const handleParentPresenceResponse = async (playerId: string, response: 'confermato' | 'declinato') => {
+    if (!event) return;
+    const existing = convs.find((c) => c.player_id === playerId);
+    if (existing) {
+      await convocazioneService.setResponse(existing.id, response);
+    } else {
+      await convocazioneService.setPlayerResponseForEvent(event.id, playerId, response);
+    }
+    load();
+  };
+
   const needsAvailabilityTracking = event ? requiresAvailability(event.event_type) : false;
-  const parentPlayerIds = user.role === 'parent' ? (user.player_ids || []) : [];
   const hasConvocations = convs.length > 0;
 
   if (loading) return <Loading />;
@@ -228,8 +250,53 @@ export default function EventDetails() {
         </div>
       )}
 
-      {/* Availability section — shown for matches, tournaments, retreats */}
-      {needsAvailabilityTracking && event && (
+      {/* Parent: Presenza figli section */}
+      {isParent && (
+        <div className="rounded-2xl border border-gold/30 bg-zinc-950/50 overflow-hidden">
+          <div className="border-b border-gold/15 px-4 py-2.5 bg-gold/5">
+            <h2 className="font-bebas text-sm text-gold tracking-wider flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5" /> PRESENZA FIGLI
+            </h2>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Indica se tuo figlio sarà presente o assente a questo evento.</p>
+            {parentPlayers.length === 0 ? (
+              <EmptyState icon={Users} title="Nessun giocatore associato" subtitle="Contatta il dirigente per associare il tuo profilo" />
+            ) : (
+              parentPlayers.map((child) => {
+                const childConv = convs.find((c) => c.player_id === child.id);
+                const currentResponse = childConv?.response || 'confermato';
+                return (
+                  <div key={child.id} className="rounded-xl border border-gold/20 bg-zinc-900/50 p-3">
+                    <p className="text-sm font-medium text-white mb-2">{child.name} {child.surname}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleParentPresenceResponse(child.id, 'confermato')}
+                        className={`flex-1 py-2.5 rounded-lg text-xs font-bebas tracking-wider transition-colors flex items-center justify-center gap-1.5 ${
+                          currentResponse === 'confermato' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-800 text-zinc-400 border border-transparent'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" /> PRESENTE
+                      </button>
+                      <button
+                        onClick={() => handleParentPresenceResponse(child.id, 'declinato')}
+                        className={`flex-1 py-2.5 rounded-lg text-xs font-bebas tracking-wider transition-colors flex items-center justify-center gap-1.5 ${
+                          currentResponse === 'declinato' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-zinc-800 text-zinc-400 border border-transparent'
+                        }`}
+                      >
+                        <X className="w-3.5 h-3.5" /> ASSENTE
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Availability section — shown for matches, tournaments, retreats (staff only) */}
+      {needsAvailabilityTracking && event && !isParent && (
         <AvailabilitySection
           event={event}
           availabilities={availabilities}
@@ -242,7 +309,8 @@ export default function EventDetails() {
         />
       )}
 
-      {/* Convocation stats */}
+      {/* Convocation stats — staff only */}
+      {!isParent && (
       <div className="rounded-2xl border border-gold/30 bg-zinc-950/50 overflow-hidden">
         <div className="border-b border-gold/15 px-4 py-2.5 bg-gold/5 flex items-center justify-between">
           <h2 className="font-bebas text-sm text-gold tracking-wider flex items-center gap-1.5">
@@ -334,6 +402,7 @@ export default function EventDetails() {
           </div>
         )}
       </div>
+      )}
 
       {/* Delete confirmation with scope */}
       {confirmDelete && permissions.canManageEvents && (

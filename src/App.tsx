@@ -1,6 +1,6 @@
+import { useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Home, CalendarDays, Users, Megaphone, ClipboardList, BarChart3, Settings } from 'lucide-react';
-import type { UserRole } from '@/types';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { useBranding } from '@/hooks/useBranding';
 import { USER_ROLE_META } from '@/lib/constants';
@@ -28,9 +28,13 @@ const adminNavItems = [
   { to: '/impostazioni', label: 'Impostazioni', icon: Settings, end: false },
 ];
 
-function RoleGuard({ role, fallback, children }: { role: UserRole; fallback: React.ReactNode; children: React.ReactNode }) {
+function ParentPresenzeRedirect({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (user.role === role) return <>{fallback}</>;
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (user.role === 'parent') navigate('/calendario', { replace: true });
+  }, [user.role, navigate]);
+  if (user.role === 'parent') return null;
   return <>{children}</>;
 }
 
@@ -94,7 +98,7 @@ function AppInner() {
             <Route path="/rosa" element={<Players />} />
             <Route path="/rosa/:id" element={<PlayerDetails />} />
             <Route path="/comunicazioni" element={<Communications />} />
-            <Route path="/presenze" element={<RoleGuard role="parent" fallback={<Dashboard />}><Attendance /></RoleGuard>} />
+            <Route path="/presenze" element={<ParentPresenzeRedirect><Attendance /></ParentPresenzeRedirect>} />
             <Route path="/eventi/:id" element={<EventDetails />} />
             <Route path="/impostazioni" element={<AdminSettings />} />
           </Routes>
